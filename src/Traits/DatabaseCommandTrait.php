@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RoboPackage\Core\Traits;
 
+use JmesPath\Env;
 use RoboPackage\Core\Database\Database;
 use RoboPackage\Core\Contract\DatabaseInterface;
 use RoboPackage\Core\Exception\RoboPackageRuntimeException;
@@ -13,6 +14,8 @@ use RoboPackage\Core\Exception\RoboPackageRuntimeException;
  */
 trait DatabaseCommandTrait
 {
+    use TokenTrait;
+
     /**
      * @var \RoboPackage\Core\Contract\DatabaseInterface[]
      */
@@ -67,10 +70,7 @@ trait DatabaseCommandTrait
             if (!is_array($database)) {
                 continue;
             }
-            $this->appendDatabaseRuntimeArguments(
-                $database,
-                $connection
-            );
+            $this->processDatabaseProperties($database, $connection);
 
             if (
                 isset(
@@ -100,52 +100,121 @@ trait DatabaseCommandTrait
     }
 
     /**
-     * Append database runtime arguments.
+     * Process the database properties.
      *
      * @param array $database
-     *   The database configuration.
+     *   An array of the database properties.
      * @param string $connection
      *   The database connection (e.g. internal, external).
-     * @return void
      *
-     * @throws \JsonException
+     * @return void
      */
-    protected function appendDatabaseRuntimeArguments(
+    protected function processDatabaseProperties(
         array &$database,
         string $connection
     ): void {
-        if (isset($database['runtime_arguments'])) {
-            $runtimeArgs = $database['runtime_arguments'];
+        $tokens = ['connection' => $connection];
 
-            if ($command = $runtimeArgs['command'] ?? null) {
-                $command = str_replace('{connection}', $connection, $command);
-                $task = $this->taskExec($command)
-                    ->silent(true)
-                    ->printOutput(false)
-                    ->run();
+        foreach ($database as &$value) {
+            if (!is_array($value) || !isset($value['type'])) {
+                continue;
+            }
+            $type = $value['type'];
 
-                if ($task->wasSuccessful()) {
-                    $message = $task->getMessage();
-                    $result = json_decode(
-                        $message,
-                        true,
-                        512,
-                        JSON_THROW_ON_ERROR
-                    );
-                    $mapping = $runtimeArgs['mapping'] ?? [];
-
-                    foreach ($mapping as $fromKey => $toKey) {
-                        if (isset($result[$fromKey]) && $fromKey !== $toKey) {
-                            $result[$toKey] = $result[$fromKey];
-                            unset($result[$fromKey]);
-                        }
-                    }
-
-                    $database += $result;
-                }
+            if ($type === 'command' && isset($value['configuration'])) {
+                $configuration = $value['configuration'];
+                $value = $this->executeCommand(
+                    $configuration['command'],
+                    $tokens
+                );
             }
 
-            unset($database['runtime_arguments']);
+            if ($type === 'expression' && isset($value['configuration'])) {
+                $configuration = $value['configuration'];
+
+                if (isset($configuration['data']['type'])) {
+                    $data = $configuration['data'];
+
+                    if (
+                        $data['type'] === 'command'
+                        && isset($data['command'], $configuration['expression'])
+                        && $expressionData = $this->executeCommand($data['command'], $tokens)
+                    ) {
+                        $value = $this->executeExpression(
+                            $expressionData,
+                            $configuration['expression'],
+                            $tokens
+                        );
+                    }
+                }
+            }
         }
+    }
+
+    /**
+     * Execute a command.
+     *
+     * @param string $command
+     *   The command to execute.
+     * @param array $tokens
+     *   An array of tokens used for replacements.
+     *
+     * @return string|null
+     */
+    protected function executeCommand(
+        string $command,
+        array $tokens = []
+    ): ?string {
+        $command = $this->replaceToken($command, $tokens);
+
+        $task = $this->taskExec($command)
+            ->silent(true)
+            ->printOutput(false)
+            ->run();
+
+        return $task->wasSuccessful()
+            ? $task->getMessage()
+            : null;
+    }
+
+    /**
+     * Execute the expression.
+     *
+     * @param string $data
+     *   The JSON string data.
+     * @param string $expression
+     *   The JMES expression.
+     * @param array $tokens
+     *   An array of tokens.
+     *
+     * @return string|null
+     *   The expression value extracted.
+     */
+    protected function executeExpression(
+        string $data,
+        string $expression,
+        array $tokens = []
+    ): mixed {
+        try {
+            if ($json = json_decode($data, true, 512, JSON_THROW_ON_ERROR)) {
+                $expression = $this->replaceToken($expression, $tokens);
+                $value = Env::search($expression, $json);
+
+                if (!is_scalar($value)) {
+                    throw new RoboPackageRuntimeException(
+                        'The expression value is an invalid type.'
+                    );
+                }
+
+                return $value;
+            }
+        } catch (\Exception $exception) {
+            new RoboPackageRuntimeException(sprintf(
+                'The following exception: %s was thrown while running the expression.',
+                $exception->getMessage()
+            ));
+        }
+
+        return null;
     }
 }

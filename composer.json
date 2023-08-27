@@ -19,10 +19,11 @@
     ],
     "require": {
         "php": ">=8.0",
+        "consolidation/robo": "^1.4 || ^2 || ^3 || ^4",
         "kcs/class-finder": "^0.3.2",
-        "symfony/yaml": "^5.0 || ^6.0",
+        "mtdowling/jmespath.php": "^2.6",
         "symfony/string": "^5.0 || ^6.0",
-        "consolidation/robo": "^1.4 || ^2 || ^3 || ^4"
+        "symfony/yaml": "^5.0 || ^6.0"
     },
     "require-dev":  {
         "squizlabs/php_codesniffer": "^3.5",
