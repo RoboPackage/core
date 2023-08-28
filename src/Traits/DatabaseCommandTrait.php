@@ -22,6 +22,11 @@ trait DatabaseCommandTrait
     protected array $databases = [];
 
     /**
+     * @var array
+     */
+    protected array $databaseContexts = [];
+
+    /**
      * Get the database instance.
      *
      * @param string $key
@@ -37,9 +42,10 @@ trait DatabaseCommandTrait
         string $key = 'primary',
         string $connection = 'external'
     ): ?DatabaseInterface {
+        $this->setDatabaseContext('connection', $connection);
 
         if (count($this->databases) === 0) {
-            $this->buildDatabases($connection);
+            $this->buildDatabases();
         }
 
         return $this->databases[$key]
@@ -53,15 +59,10 @@ trait DatabaseCommandTrait
     /**
      * Build the configuration databases.
      *
-     * @param string $connection
-     *   The database connection (e.g. internal, external).
-     *
      * @return \RoboPackage\Core\Contract\DatabaseInterface[]
      *   An array of databases keyed by value set in configuration.
-     *
-     * @throws \JsonException
      */
-    protected function buildDatabases(string $connection): array
+    protected function buildDatabases(): array
     {
         $this->databases = [];
         $config = $this->getConfig();
@@ -70,7 +71,7 @@ trait DatabaseCommandTrait
             if (!is_array($database)) {
                 continue;
             }
-            $this->processDatabaseProperties($database, $connection);
+            $this->processDatabaseProperties($database);
 
             if (
                 isset(
@@ -104,68 +105,53 @@ trait DatabaseCommandTrait
      *
      * @param array $database
      *   An array of the database properties.
-     * @param string $connection
-     *   The database connection (e.g. internal, external).
      *
      * @return void
      */
     protected function processDatabaseProperties(
-        array &$database,
-        string $connection
+        array &$database
     ): void {
-        $tokens = ['connection' => $connection];
-
         foreach ($database as &$value) {
             if (!is_array($value) || !isset($value['type'])) {
                 continue;
             }
             $type = $value['type'];
+            $configuration = $value['configuration'] ?? [];
 
-            if ($type === 'command' && isset($value['configuration'])) {
-                $configuration = $value['configuration'];
-                $value = $this->executeCommand(
-                    $configuration['command'],
-                    $tokens
+            if ($type === 'command' && isset($configuration['command'])) {
+                $value = $this->executeDatabaseCommand(
+                    $configuration['command']
                 );
             }
 
-            if ($type === 'expression' && isset($value['configuration'])) {
-                $configuration = $value['configuration'];
-
-                if (isset($configuration['data']['type'])) {
-                    $data = $configuration['data'];
-
-                    if (
-                        $data['type'] === 'command'
-                        && isset($data['command'], $configuration['expression'])
-                        && $expressionData = $this->executeCommand($data['command'], $tokens)
-                    ) {
-                        $value = $this->executeExpression(
-                            $expressionData,
-                            $configuration['expression'],
-                            $tokens
-                        );
-                    }
+            if ($type === 'expression' && isset($configuration['data']['type'])) {
+                $data = $configuration['data'];
+                if (
+                    $data['type'] === 'command'
+                    && isset($data['command'], $configuration['expression'])
+                    && $expressionData = $this->executeDatabaseCommand($data['command'])
+                ) {
+                    $value = $this->executeDatabaseExpression(
+                        $expressionData,
+                        $configuration['expression']
+                    );
                 }
             }
         }
     }
 
     /**
-     * Execute a command.
+     * Execute a database command.
      *
      * @param string $command
      *   The command to execute.
-     * @param array $tokens
-     *   An array of tokens used for replacements.
      *
      * @return string|null
      */
-    protected function executeCommand(
-        string $command,
-        array $tokens = []
+    protected function executeDatabaseCommand(
+        string $command
     ): ?string {
-        $command = $this->replaceToken($command, $tokens);
+        $command = $this->replaceToken($command);
 
         $task = $this->taskExec($command)
             ->silent(true)
@@ -178,35 +164,42 @@ trait DatabaseCommandTrait
     }
 
     /**
-     * Execute the expression.
+     * Execute the database expression.
      *
-     * @param string $data
+     * @param string $jsonData
      *   The JSON string data.
-     * @param string $expression
-     *   The JMES expression.
-     * @param array $tokens
-     *   An array of tokens.
+     * @param string|array $expression
+     *   The single or multiple JMES expression.
      *
      * @return string|null
      *   The expression value extracted.
      */
-    protected function executeExpression(
-        string $data,
-        string $expression,
-        array $tokens = []
+    protected function executeDatabaseExpression(
+        string $jsonData,
+        string|array $expression,
     ): mixed {
+        $value = null;
         try {
-            if ($json = json_decode($data, true, 512, JSON_THROW_ON_ERROR)) {
-                $expression = $this->replaceToken($expression, $tokens);
-                $value = Env::search($expression, $json);
+            if ($json = json_decode($jsonData, true, 512, JSON_THROW_ON_ERROR)) {
+                if (is_string($expression)) {
+                    $value = Env::search(
+                        $this->replaceToken($expression),
+                        $json
+                    );
+                }
+
+                if (is_array($expression)) {
+                    $value = $this->executeDatabaseConnectionExpression(
+                        $json,
+                        $expression,
+                    );
+                }
 
                 if (!is_scalar($value)) {
                     throw new RoboPackageRuntimeException(
                         'The expression value is an invalid type.'
                     );
                 }
-
-                return $value;
             }
         } catch (\Exception $exception) {
             new RoboPackageRuntimeException(sprintf(
@@ -215,6 +208,89 @@ trait DatabaseCommandTrait
             ));
         }
 
+        return $value;
+    }
+
+    /**
+     * Execute the database connection expression.
+     *
+     * @param array $data
+     *   An array of expression data.
+     * @param array $expression
+     *   An array of expression with the following:
+     *      - query: The JMES expression query.
+     *      - connection: Either internal or external.
+     *
+     * @return mixed
+     *   The extract value based on the expression query.
+     */
+    protected function executeDatabaseConnectionExpression(
+        array $data,
+        array $expression,
+    ): mixed {
+        $contexts = $this->getDatabaseContexts();
+
+        if (isset($contexts['connection'])) {
+            foreach ($expression as $expressionInfo) {
+                if (
+                    !isset(
+                        $expressionInfo['query'],
+                        $expressionInfo['connection']
+                    )
+                ) {
+                    continue;
+                }
+                if ($expressionInfo['connection'] === $contexts['connection']) {
+                    return Env::search(
+                        $this->replaceToken($expressionInfo['query']),
+                        $data
+                    );
+                }
+            }
+        }
+
         return null;
+    }
+
+    /**
+     * Get the database contexts.
+     *
+     * @return array
+     *   The database contexts.
+     */
+    protected function getDatabaseContexts(): array
+    {
+        return $this->databaseContexts;
+    }
+
+    /**
+     * Set the database context.
+     *
+     * @param string $key
+     *   The context key.
+     * @param string $value
+     *   The context value.
+     *
+     * @return $this
+     */
+    protected function setDatabaseContext(
+        string $key,
+        string $value
+    ): static {
+        $this->databaseContexts[$key] = $value;
+
+        return $this;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    protected function getTokenData(): array
+    {
+        $contexts = $this->getDatabaseContexts();
+
+        return [
+            'connection' => $contexts['connection'] ?? null
+        ];
     }
 }

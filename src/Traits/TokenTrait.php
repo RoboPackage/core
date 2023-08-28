@@ -14,22 +14,22 @@ trait TokenTrait
      *
      * @param string $string
      *   The string to replace with tokens.
-     * @param array $tokens
-     *   The tokens used in the replacement.
      *
      * @return string
      *   The string with the token replaced.
      */
     protected function replaceToken(
-        string $string,
-        array $tokens = []
+        string $string
     ): string {
+        $tokenData = $this->getTokenData();
+
         return preg_replace(
-            $this->formatTokenPattern($tokens),
-            array_values($tokens),
+            $this->formatTokenPattern($tokenData),
+            array_values($tokenData),
             $string
         );
     }
+
 
     /**
      * Format the token pattern.
@@ -45,10 +45,21 @@ trait TokenTrait
     ): array {
         $pattern = [];
 
-        foreach ($tokens as $token => $value) {
+        foreach (array_keys($tokens) as $token) {
             $pattern[] = "/{{\s*$token\s*}}/";
         }
 
         return $pattern;
+    }
+
+    /**
+     * Get the token replacement data.
+     *
+     * @return array
+     *   An array of token data.
+     */
+    protected function getTokenData(): array
+    {
+        return [];
     }
 }
