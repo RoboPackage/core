@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace RoboPackage\Core\Traits;
 
-use Robo\Collection\CollectionBuilder;
 use Robo\Result;
-use Robo\Symfony\ConsoleIO;
-use Robo\Common\ConfigAwareTrait;
 use Robo\Task\Base\Exec;
+use Robo\Common\ConfigAwareTrait;
+use Robo\Collection\CollectionBuilder;
 use RoboPackage\Core\Exception\RoboPackageRuntimeException;
 
 /**
  * Define the config command trait.
+ *
+ * This trait requires you to utilize the Robo\Contract\ConfigAwareInterface
+ * on your plugin class.
  */
 trait ConfigCommandTrait
 {
@@ -21,8 +23,6 @@ trait ConfigCommandTrait
     /**
      * Run the config command
      *
-     * @param \Robo\Symfony\ConsoleIO $io
-     *   The console IO service.
      * @param string $command
      *   The command to execute.
      * @param string $configPrefix
@@ -33,7 +33,6 @@ trait ConfigCommandTrait
      * @return \Robo\Result|bool
      */
     protected function runConfigCommand(
-        ConsoleIO $io,
         string $command,
         string $configPrefix,
         array $commandArgs = []
@@ -45,12 +44,24 @@ trait ConfigCommandTrait
                 $commandArgs
             )->run();
         } catch (\Exception $exception) {
-            $io->error($exception->getMessage());
+            $this->io()->error($exception->getMessage());
         }
 
         return false;
     }
 
+    /**
+     * Build the command task.
+     *
+     * @param string $command
+     *   The executable command.
+     * @param string $configPrefix
+     *   The configuration prefix.
+     * @param array $commandArgs
+     *   The command arguments.
+     *
+     * @return \Robo\Collection\CollectionBuilder|\Robo\Task\Base\Exec
+     */
     protected function buildCommandTask(
         string $command,
         string $configPrefix,

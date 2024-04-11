@@ -4,16 +4,24 @@ declare(strict_types=1);
 
 namespace RoboPackage\Core\Plugin;
 
-use Psr\Container\ContainerInterface;
+use Robo\Contract\IOAwareInterface;
+use Robo\Collection\CollectionBuilder;
+use Robo\Contract\ConfigAwareInterface;
+use Robo\Contract\BuilderAwareInterface;
+use League\Container\ContainerAwareTrait;
+use League\Container\ContainerAwareInterface;
 use RoboPackage\Core\Contract\PluginInterface;
 use RoboPackage\Core\Contract\PluginDiscoveryInterface;
+use RoboPackage\Core\Exception\RoboPackageRuntimeException;
 use RoboPackage\Core\Contract\PluginContainerInjectionInterface;
 
 /**
  * Define the plugin manager.
  */
-abstract class PluginManagerBase
+abstract class PluginManagerBase implements ContainerAwareInterface
 {
+    use ContainerAwareTrait;
+
     /**
      * Set the use cache flag.
      *
@@ -27,11 +35,6 @@ abstract class PluginManagerBase
      * @var array
      */
     protected array $definitions = [];
-
-    /**
-     * @var \Psr\Container\ContainerInterface
-     */
-    protected ContainerInterface $container;
 
     /**
      * The plugin manager constructor.
@@ -54,19 +57,6 @@ abstract class PluginManagerBase
     }
 
     /**
-     * Set the plugin container.
-     *
-     * @param \Psr\Container\ContainerInterface $container
-     *   The container instance.
-     */
-    public function setContainer(ContainerInterface $container): static
-    {
-        $this->container = $container;
-
-        return $this;
-    }
-
-    /**
      * Create the plugin instance.
      *
      * @param string $pluginId
@@ -78,29 +68,54 @@ abstract class PluginManagerBase
         string $pluginId,
         array $configuration = []
     ): ?PluginInterface {
+        $instance = null;
         $pluginDefinition = $this->getDefinition($pluginId);
+
+        if (!isset($this->container)) {
+            throw new RoboPackageRuntimeException(
+                'The container is required to instantiate a plugin.'
+            );
+        }
 
         if (($classname = $pluginDefinition['class']) && class_exists($classname)) {
             unset($pluginDefinition['class']);
 
-            if (
-                isset($this->container)
-                && is_subclass_of($classname, PluginContainerInjectionInterface::class)
-            ) {
-                return $classname::create(
+            if (is_subclass_of($classname, PluginContainerInjectionInterface::class)) {
+                $instance = $classname::create(
                     $configuration,
                     $pluginDefinition,
                     $this->container,
                 );
+            } else {
+                $instance = new $classname(
+                    $configuration,
+                    $pluginDefinition
+                );
             }
 
-            return new $classname(
-                $configuration,
-                $pluginDefinition
-            );
+            if ($instance instanceof IOAwareInterface) {
+                if ($input = $this->container->get('input')) {
+                    $instance->setInput($input);
+                }
+                if ($output = $this->container->get('output')) {
+                    $instance->setOutput($output);
+                }
+            }
+
+            if ($instance instanceof ConfigAwareInterface) {
+                $instance->setConfig(
+                    $this->container->get('config')
+                );
+            }
+
+            if ($instance instanceof BuilderAwareInterface) {
+                $instance->setBuilder(
+                    CollectionBuilder::create($this->container, $instance)
+                );
+            }
         }
 
-        return null;
+        return $instance;
     }
 
     /**

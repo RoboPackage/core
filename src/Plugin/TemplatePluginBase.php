@@ -110,23 +110,21 @@ abstract class TemplatePluginBase extends PluginBase implements TemplatePluginIn
     /**
      * @inheritDoc
      */
-    public function getVariables(?ConsoleIO $io = null): array
+    public function getVariables(): array
     {
         $variables = $this->getStaticVariables();
 
-        if (isset($io)) {
-            foreach ($this->variableDefinitions() as $name => $definition) {
-                if (
-                    !isset($definition['callback'])
-                    || !is_callable($definition['callback'])
-                ) {
-                    continue;
-                }
-                $name = $definition['variable'] ?? $name;
+        foreach ($this->variableDefinitions() as $name => $definition) {
+            if (
+                !isset($definition['callback'])
+                || !is_callable($definition['callback'])
+            ) {
+                continue;
+            }
+            $name = $definition['variable'] ?? $name;
 
-                if (!isset($variables[$name])) {
-                    $variables[$name] = $definition['callback']($io);
-                }
+            if (!isset($variables[$name])) {
+                $variables[$name] = $definition['callback']($this->io());
             }
         }
 

@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace RoboPackage\Core\Plugin;
 
+use Robo\Tasks;
 use RoboPackage\Core\Contract\PluginInterface;
 
 /**
  * Define the plugin base.
  */
-abstract class PluginBase implements PluginInterface
+abstract class PluginBase extends Tasks implements PluginInterface
 {
     /**
      * Define the class constructor.
@@ -26,19 +27,7 @@ abstract class PluginBase implements PluginInterface
     }
 
     /**
-     * Get the plugin label.
-     *
-     * @return string|null
-     */
-    public function getPluginLabel(): ?string
-    {
-        return $this->pluginDefinition['label'] ?? null;
-    }
-
-    /**
-     * Get the plugin identifier.
-     *
-     * @return string|null
+     * @inheritDoc
      */
     public function getPluginId(): ?string
     {
@@ -46,12 +35,26 @@ abstract class PluginBase implements PluginInterface
     }
 
     /**
-     * Get the plugin configuration.
-     *
-     * @return array
+     * @inheritDoc
+     */
+    public function getPluginLabel(): ?string
+    {
+        return $this->pluginDefinition['label'] ?? null;
+    }
+
+    /**
+     * @inheritDoc
      */
     public function getConfiguration(): array
     {
         return $this->configuration ?? [];
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function isApplicable(): bool
+    {
+        return true;
     }
 }

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace RoboPackage\Core;
+namespace RoboPackage\Core\Plugin\Manager;
 
-use Robo\Robo;
+use Composer\Autoload\ClassLoader;
 use RoboPackage\Core\Plugin\PluginManagerBase;
 use RoboPackage\Core\Attributes\ExecutablePluginMetadata;
 use RoboPackage\Core\Plugin\Discovery\PluginNamespaceDiscovery;
@@ -17,10 +17,10 @@ class ExecutableManager extends PluginManagerBase
     /**
      * The executable plugin manager constructor.
      */
-    public function __construct()
+    public function __construct(
+        protected ClassLoader $classloader
+    )
     {
-        $classloader = Robo::service('classLoader');
-
         parent::__construct(
             (new PluginNamespaceDiscovery($classloader))
                 ->setNamespace('Plugin\RoboPackage\Executable')

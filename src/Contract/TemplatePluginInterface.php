@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace RoboPackage\Core\Contract;
 
-use Robo\Symfony\ConsoleIO;
-
 /**
  * Define the template plugin interface.
  */
@@ -35,9 +33,7 @@ interface TemplatePluginInterface extends PluginInterface, PluginContainerInject
     /**
      * Get the template plugin variables.
      *
-     * @param \Robo\Symfony\ConsoleIO|null $io
-     *
      * @return array
      */
-    public function getVariables(?ConsoleIO $io = null): array;
+    public function getVariables(): array;
 }

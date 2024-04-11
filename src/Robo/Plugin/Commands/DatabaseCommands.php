@@ -8,10 +8,9 @@ use Robo\Tasks;
 use Robo\Symfony\ConsoleIO;
 use RoboPackage\Core\RoboPackage;
 use Robo\Contract\ConfigAwareInterface;
-use RoboPackage\Core\ExecutableManager;
 use RoboPackage\Core\Service\DatabaseLauncher;
-use RoboPackage\Core\Traits\ConfigCommandTrait;
 use RoboPackage\Core\Traits\DatabaseCommandTrait;
+use RoboPackage\Core\Plugin\Manager\ExecutableManager;
 use RoboPackage\Core\Contract\MySqlExecutableInterface;
 use RoboPackage\Core\Contract\MySqlDumpExecutableInterface;
 use RoboPackage\Core\Exception\RoboPackageRuntimeException;
@@ -21,11 +20,10 @@ use RoboPackage\Core\Exception\RoboPackageRuntimeException;
  */
 class DatabaseCommands extends Tasks implements ConfigAwareInterface
 {
-    use ConfigCommandTrait;
     use DatabaseCommandTrait;
 
     /**
-     * @var \RoboPackage\Core\ExecutableManager
+     * @var \RoboPackage\Core\Plugin\Manager\ExecutableManager
      */
     protected ExecutableManager $executableManager;
 
@@ -34,7 +32,7 @@ class DatabaseCommands extends Tasks implements ConfigAwareInterface
      */
     public function __construct()
     {
-        $this->executableManager = RoboPackage::executableManager();
+        $this->executableManager = RoboPackage::getContainer()->get('executableManager');
     }
 
     /**
@@ -44,9 +42,6 @@ class DatabaseCommands extends Tasks implements ConfigAwareInterface
      *   The path to the database import file.
      * @param string $databaseKey
      *   The project database key in the configuration.
-     *
-     * @throws \Psr\Container\ContainerExceptionInterface
-     * @throws \Psr\Container\NotFoundExceptionInterface
      */
     public function dbImport(
         ConsoleIO $io,

@@ -37,7 +37,7 @@ abstract class DatastoreBase implements DatastoreInterface
         if (!file_exists($filepath)) {
             $fileDirectory = dirname($filepath);
 
-            if (!mkdir($fileDirectory, 0775, true) && !is_dir($fileDirectory)) {
+            if (!is_dir($fileDirectory) && !mkdir($fileDirectory, 0775, true)) {
                 throw new DatastoreRuntimeException(sprintf(
                     'Directory "%s" was not created',
                     $fileDirectory

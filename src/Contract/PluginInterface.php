@@ -29,4 +29,12 @@ interface PluginInterface
      * @return array
      */
     public function getConfiguration(): array;
+
+    /**
+     * Determine if the plugin is applicable.
+     *
+     * @return bool
+     *   Return true if requirements are met; otherwise false.
+     */
+    public function isApplicable(): bool;
 }

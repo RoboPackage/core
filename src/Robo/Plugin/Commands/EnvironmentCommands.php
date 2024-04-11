@@ -5,26 +5,24 @@ declare(strict_types=1);
 namespace RoboPackage\Core\Robo\Plugin\Commands;
 
 use Robo\Tasks;
-use Robo\Symfony\ConsoleIO;
 use Robo\Contract\ConfigAwareInterface;
-use RoboPackage\Core\Traits\ConfigCommandTrait;
+use RoboPackage\Core\Traits\EnvironmentCommandTrait;
 
 /**
  * Define the robo package environment commands.
  */
 class EnvironmentCommands extends Tasks implements ConfigAwareInterface
 {
-    use ConfigCommandTrait;
+    use EnvironmentCommandTrait;
 
     /**
      * Start the project environment.
      *
      * @aliases env:up
      */
-    public function envStart(ConsoleIO $io): void
+    public function envStart(): void
     {
         $this->runEnvironmentCommand(
-            $io,
             'start'
         );
     }
@@ -34,10 +32,9 @@ class EnvironmentCommands extends Tasks implements ConfigAwareInterface
      *
      * @aliases env:down
      */
-    public function envStop(ConsoleIO $io): void
+    public function envStop(): void
     {
         $this->runEnvironmentCommand(
-            $io,
             'stop'
         );
     }
@@ -47,10 +44,9 @@ class EnvironmentCommands extends Tasks implements ConfigAwareInterface
      *
      * @alias env:reboot
      */
-    public function envRestart(ConsoleIO $io): void
+    public function envRestart(): void
     {
         $this->runEnvironmentCommand(
-            $io,
             'restart'
         );
     }
@@ -58,10 +54,9 @@ class EnvironmentCommands extends Tasks implements ConfigAwareInterface
     /**
      * Display info of the project environment.
      */
-    public function envInfo(ConsoleIO $io): void
+    public function envInfo(): void
     {
         $this->runEnvironmentCommand(
-            $io,
             'info'
         );
     }
@@ -71,10 +66,9 @@ class EnvironmentCommands extends Tasks implements ConfigAwareInterface
      *
      * @aliases ssh
      */
-    public function envSsh(ConsoleIO $io, array $commandArgs): void
+    public function envSsh(array $commandArgs): void
     {
         $this->runEnvironmentCommand(
-            $io,
             'ssh',
             $commandArgs
         );
@@ -83,12 +77,11 @@ class EnvironmentCommands extends Tasks implements ConfigAwareInterface
     /**
      * Execute command in the project environment.
      */
-    public function envExec(ConsoleIO $io, array $execCommand): void
+    public function envExec(array $execCommand): void
     {
         $commandString = implode(' ', $execCommand);
 
         $this->runEnvironmentCommand(
-            $io,
             'execute',
             [
                 $commandString
@@ -99,10 +92,9 @@ class EnvironmentCommands extends Tasks implements ConfigAwareInterface
     /**
      * Launch the project environment in browser.
      */
-    public function envLaunch(ConsoleIO $io): void
+    public function envLaunch(): void
     {
         $this->runEnvironmentCommand(
-            $io,
             'launch'
         );
     }
@@ -110,36 +102,10 @@ class EnvironmentCommands extends Tasks implements ConfigAwareInterface
     /**
      * Destroy the project environment.
      */
-    public function envDestroy(ConsoleIO $io): void
+    public function envDestroy(): void
     {
         $this->runEnvironmentCommand(
-            $io,
             'destroy'
-        );
-    }
-
-    /**
-     * Run the environment config command.
-     *
-     * @param \Robo\Symfony\ConsoleIO $io
-     *   The console IO service.
-     * @param string $command
-     *   The command to execute.
-     * @param array $commandArgs
-     *   The command pass-through arguments.
-     *
-     * @return void
-     */
-    protected function runEnvironmentCommand(
-        ConsoleIO $io,
-        string $command,
-        array $commandArgs = []
-    ): void {
-        $this->runConfigCommand(
-            $io,
-            $command,
-            'environment',
-            $commandArgs
         );
     }
 }

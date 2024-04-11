@@ -6,7 +6,14 @@ namespace RoboPackage\Core;
 
 use Robo\Robo;
 use Composer\InstalledVersions;
+use Psr\Container\ContainerInterface;
+use Consolidation\Config\Util\ConfigOverlay;
+use RoboPackage\Core\Datastore\YamlDatastore;
+use RoboPackage\Core\Plugin\Manager\TemplateManager;
+use RoboPackage\Core\Plugin\Manager\ExecutableManager;
+use RoboPackage\Core\Plugin\Manager\InstallableManager;
 use RoboPackage\Core\Exception\RoboPackageRuntimeException;
+use RoboPackage\Core\Plugin\Manager\EnvironmentManager;
 
 /**
  * Define the Robo package instance.
@@ -28,6 +35,13 @@ class RoboPackage
     protected static array $composer = [];
 
     /**
+     * The Robo package container.
+     *
+     * @var \Psr\Container\ContainerInterface|null
+     */
+    protected static ?ContainerInterface $container = null;
+
+    /**
      * Get the Robo package project root path.
      *
      * @return string
@@ -45,27 +59,72 @@ class RoboPackage
     }
 
     /**
-     * Get the Robo package template manager.
+     * Get the Robo package container.
      *
-     * @return \RoboPackage\Core\TemplateManager
+     * @return \Psr\Container\ContainerInterface
+     *   The container instance.
      */
-    public static function templateManager(): TemplateManager
+    public static function getContainer(): ContainerInterface
     {
-        return (new TemplateManager(static::rootPath()))->setContainer(
-            Robo::getContainer()
-        );
+        if (!isset(static::$container)) {
+            static::$container = Robo::getContainer();
+
+            Robo::addShared(
+                static::$container,
+                'executableManager',
+                ExecutableManager::class
+            )
+                ->addArgument('classLoader');
+
+            Robo::addShared(
+                static::$container,
+                'environmentManager',
+                EnvironmentManager::class
+            )
+                ->addArgument('classLoader');
+
+            Robo::addShared(
+                static::$container,
+                'installableManager',
+                InstallableManager::class
+            )
+                ->addArgument('classLoader');
+
+            Robo::addShared(
+                static::$container,
+                'templateManager',
+                TemplateManager::class
+            )
+                ->addArgument(self::rootPath())
+                ->addArgument('classLoader');
+        }
+
+        return static::$container;
     }
 
     /**
-     * Get the Robo package executable manager.
+     * Write data to the Robo configuration in the robo.yml file.
      *
-     * @return \RoboPackage\Core\ExecutableManager
+     * @param array $data
+     *   The configuration you would like to combine with the existing
+     *   configuration in the robo.yml.
+     *
+     * @throws \Psr\Container\ContainerExceptionInterface
+     * @throws \Psr\Container\NotFoundExceptionInterface
      */
-    public static function executableManager(): ExecutableManager
+    public static function writeConfig(array $data): void
     {
-        return (new ExecutableManager())->setContainer(
-            Robo::getContainer()
-        );
+        if (!empty($data) && ($config = self::getContainer()->get('config'))) {
+            $config->removeContext(ConfigOverlay::PROCESS_CONTEXT);
+            $config->combine($data);
+
+            if ($export = $config->export()) {
+                $rootPath = self::rootPath();
+                $store = new YamlDatastore("$rootPath/robo.yml");
+                $store->setInline(10);
+                $store->write($export);
+            }
+        }
     }
 
     /**

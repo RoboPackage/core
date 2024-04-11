@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace RoboPackage\Core;
+namespace RoboPackage\Core\Plugin\Manager;
 
-use Robo\Robo;
+use Composer\Autoload\ClassLoader;
 use Kcs\ClassFinder\PathNormalizer;
 use RoboPackage\Core\Plugin\PluginManagerBase;
 use RoboPackage\Core\Contract\PluginInterface;
@@ -25,15 +25,25 @@ class TemplateManager extends PluginManagerBase
      * The template plugin manager constructor.
      */
     public function __construct(
-        protected string $rootPath
+        protected string $rootPath,
+        protected ClassLoader $classloader
     ) {
-        $classloader = Robo::service('classLoader');
-
         parent::__construct(
             (new PluginNamespaceDiscovery($classloader))
                 ->setNamespace('Plugin\RoboPackage\Template')
                 ->setAttributeClass(TemplatePluginMetadata::class)
         );
+    }
+
+    /**
+     * Get the current working directory.
+     *
+     * @return string
+     *   The project current working directory.
+     */
+    public function getRootPath(): string
+    {
+        return $this->rootPath;
     }
 
     /**

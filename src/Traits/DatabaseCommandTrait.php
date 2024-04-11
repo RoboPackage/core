@@ -11,10 +11,14 @@ use RoboPackage\Core\Exception\RoboPackageRuntimeException;
 
 /**
  * Define the database command trait.
+ *
+ * This trait requires you to utilize the Robo\Contract\ConfigAwareInterface
+ * on your plugin class.
  */
 trait DatabaseCommandTrait
 {
     use TokenTrait;
+    use ConfigCommandTrait;
 
     /**
      * @var \RoboPackage\Core\Contract\DatabaseInterface[]
@@ -229,7 +233,6 @@ trait DatabaseCommandTrait
         array $expression,
     ): mixed {
         $contexts = $this->getDatabaseContexts();
-
         if (isset($contexts['connection'])) {
             foreach ($expression as $expressionInfo) {
                 if (
