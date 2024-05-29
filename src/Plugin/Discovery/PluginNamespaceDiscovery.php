@@ -77,17 +77,19 @@ class PluginNamespaceDiscovery implements PluginDiscoveryInterface
     {
         $definitions = [];
 
-        $composerFinder = (new ComposerFinder())
-            ->inNamespace($this->findPluginNamespaces())
-            ->withAttribute($this->attributeClass);
+        if ($pluginNamespaces = $this->findPluginNamespaces()) {
+            $composerFinder = (new ComposerFinder())
+                ->inNamespace($pluginNamespaces)
+                ->withAttribute($this->attributeClass);
 
-        /** @var \ReflectionClass $reflection */
-        foreach ($composerFinder->getIterator() as $className => $reflection) {
-            foreach ($reflection->getAttributes() as $attribute) {
-                if ($attribute->getTarget() !== \Attribute::TARGET_CLASS) {
-                    continue;
+            /** @var \ReflectionClass $reflection */
+            foreach ($composerFinder->getIterator() as $className => $reflection) {
+                foreach ($reflection->getAttributes() as $attribute) {
+                    if ($attribute->getTarget() !== \Attribute::TARGET_CLASS) {
+                        continue;
+                    }
+                    $definitions[$className] = $attribute->getArguments();
                 }
-                $definitions[$className] = $attribute->getArguments();
             }
         }
 
@@ -113,7 +115,6 @@ class PluginNamespaceDiscovery implements PluginDiscoveryInterface
                 $namespaces[] = "$prefixNamespace$this->namespace";
             }
         }
-
         return $namespaces;
     }
 

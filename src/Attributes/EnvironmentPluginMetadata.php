@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use RoboPackage\Core\Attributes\PluginMetadata;
+namespace RoboPackage\Core\Attributes;
 
 /**
  * Define the environment plugin metadata.

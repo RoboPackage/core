@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-namespace RoboCollection\Core\Attributes;
-
-use RoboPackage\Core\Attributes\PluginMetadata;
+namespace RoboPackage\Core\Attributes;
 
 /**
  * Define the installable plugin metadata.
