@@ -20,8 +20,8 @@
     "require": {
         "php": ">=8.0",
         "consolidation/robo": "^1.4 || ^2 || ^3 || ^4",
-        "kcs/class-finder": "^0.3.2",
-        "mtdowling/jmespath.php": "^2.6",
+        "kcs/class-finder": "^0.5",
+        "mtdowling/jmespath.php": "^2.7",
         "symfony/string": "^5.0 || ^6.0",
         "symfony/yaml": "^5.0 || ^6.0"
     },
